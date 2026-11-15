@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Шылауды тап!</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;font-family:Arial,sans-serif;
+ background:linear-gradient(135deg,#d8f3ff,#e8ddff);
+ min-height:100vh;display:flex;justify-content:center;
+ align-items:center;padding:20px;color:#26345b;
+}
+.game{
+ width:100%;max-width:760px;background:white;
+ border-radius:25px;padding:30px;text-align:center;
+ box-shadow:0 10px 30px #52658a30;
+}
+h1{color:#7046b8;font-size:34px;margin:5px}
+.subtitle{color:#65718d;font-size:17px}
+.progress{height:12px;background:#eee;border-radius:20px;margin:22px 0}
+.bar{height:100%;width:0;background:#8c65dc;border-radius:20px;transition:.3s}
+.info{display:flex;justify-content:space-between;color:#7046b8;font-weight:bold}
+.question{
+ background:#f5f0ff;border-radius:20px;
+ padding:25px;margin:20px 0;
+}
+.number{color:#8b65d1;font-weight:bold}
+.sentence{font-size:27px;font-weight:bold;margin:20px 0;color:#27365d}
+.instruction{font-size:16px;color:#68728c}
+.words{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.word{
+ border:2px solid #d8d0ec;background:white;
+ border-radius:12px;padding:13px 17px;
+ font-size:20px;cursor:pointer;transition:.2s;
+}
+.word:hover{background:#eee6ff;transform:translateY(-2px)}
+.word.selected{background:#8c65dc;color:white;border-color:#8c65dc}
+.word.correct{background:#d5f8df;color:#16763b;border-color:#55bd78}
+.word.wrong{background:#ffe0e0;color:#c62828;border-color:#e57373}
+button{
+ border:0;border-radius:14px;padding:14px 25px;
+ font-size:17px;font-weight:bold;cursor:pointer;
+ margin:10px 5px;background:#7954c7;color:white;
+}
+button:hover{opacity:.85}
+button:disabled{opacity:.4;cursor:not-allowed}
+#feedback{font-size:18px;font-weight:bold;min-height:30px;margin:15px}
+#result{display:none}
+</style>
+</head>
+<body>
+<div class="game">
+ <h1>🔎 Шылауды тап!</h1>
+ <p class="subtitle">Сөйлем ішінен шылауды анықта!</p>
+
+ <div class="info">
+  <span id="count">1 / 6 тапсырма</span>
+  <span>⭐ Ұпай: <span id="score">0</span></span>
+ </div>
+ <div class="progress"><div class="bar" id="bar"></div></div>
+
+ <div id="playing">
+  <div class="question">
+   <div class="number" id="number">1-тапсырма</div>
+   <div class="sentence" id="sentence"></div>
+   <div class="instruction">Төмендегі сөздердің ішінен шылауды таңда:</div>
+  </div>
+  <div class="words" id="words"></div>
+  <div id="feedback"></div>
+  <button id="check" onclick="checkAnswer()">Тексеру ✓</button>
+  <button id="next" onclick="nextQuestion()" style="display:none">Келесі ➜</button>
+ </div>
+
+ <div id="result">
+  <h1>🎉 Жарайсың!</h1>
+  <h2>Ойын аяқталды!</h2>
+  <p id="finalScore" style="font-size:24px"></p>
+  <p id="comment"></p>
+  <button onclick="restart()">🔄 Қайта ойнау</button>
+ </div>
+</div>
+
+<script>
+const tasks=[
+ {s:"Асан мен Үсен келді.",w:["Асан","мен","Үсен","келді"],a:"мен"},
+ {s:"Мен де барамын.",w:["Мен","де","барамын"],a:"де"},
+ {s:"Кітап та, дәптер де бар.",w:["Кітап","та","дәптер","де","бар"],a:["та","де"]},
+ {s:"Анам үшін гүл сатып алдым.",w:["Анам","үшін","гүл","сатып","алдым"],a:"үшін"},
+ {s:"Сабақтан кейін үйге қайттым.",w:["Сабақтан","кейін","үйге","қайттым"],a:"кейін"},
+ {s:"Сен ғана дұрыс жауап бердің.",w:["Сен","ғана","дұрыс","жауап","бердің"],a:"ғана"}
+];
+
+let current=0,score=0,selected=[];
+
+function load(){
+ let t=tasks[current];
+ document.getElementById("count").textContent=(current+1)+" / 6 тапсырма";
+ document.getElementById("number").textContent=(current+1)+"-тапсырма";
+ document.getElementById("sentence").textContent=t.s;
+ document.getElementById("bar").style.width=(current/6*100)+"%";
+ document.getElementById("feedback").textContent="";
+ document.getElementById("check").style.display="inline-block";
+ document.getElementById("check").disabled=false;
+ document.getElementById("next").style.display="none";
+ selected=[];
+ let area=document.getElementById("words");
+ area.innerHTML="";
+ t.w.forEach(word=>{
+  let b=document.createElement("button");
+  b.className="word";
+  b.textContent=word;
+  b.onclick=()=>{
+   if(b.classList.contains("correct")||b.classList.contains("wrong"))return;
+   if(selected.includes(word)){
+    selected=selected.filter(x=>x!==word);
+    b.classList.remove("selected");
+   }else{
+    selected.push(word);
+    b.classList.add("selected");
+   }
+  };
+  area.appendChild(b);
+ });
+}
+
+function checkAnswer(){
+ if(selected.length===0){
+  document.getElementById("feedback").textContent="Алдымен бір сөзді таңда! 😊";
+  return;
+ }
+ let answer=Array.isArray(tasks[current].a)?tasks[current].a:[tasks[current].a];
+ let ok=answer.length===selected.length&&answer.every(x=>selected.includes(x));
+ document.querySelectorAll(".word").forEach(b=>{
+  if(answer.includes(b.textContent)){
+   b.classList.add("correct");
+  }else if(selected.includes(b.textContent)){
+   b.classList.add("wrong");
+  }
+ });
+ if(ok){
+  score+=10;
+  document.getElementById("score").textContent=score;
+  document.getElementById("feedback").textContent="🎉 Дұрыс! Жарайсың!";
+ }else{
+  document.getElementById("feedback").textContent="🙂 Дұрыс жауап: "+answer.join(", ");
+ }
+ document.getElementById("check").style.display="none";
+ document.getElementById("next").style.display="inline-block";
+ document.getElementById("next").textContent=current===5?"Нәтижені көру 🏆":"Келесі ➜";
+}
+
+function nextQuestion(){
+ current++;
+ if(current<6){load();}
+ else{
+  document.getElementById("playing").style.display="none";
+  document.getElementById("result").style.display="block";
+  document.getElementById("bar").style.width="100%";
+  document.getElementById("finalScore").textContent="Сенің нәтижең: "+score+" / 60 ұпай";
+  document.getElementById("comment").textContent=
+   score===60?"Тамаша! Сен шылауларды өте жақсы меңгердің! 🥇":
+   score>=30?"Жақсы жұмыс! Тағы да қайталап көр! 🌟":
+   "Талпын! Шылауларды тағы бір қайталап шық! 💪";
+ }
+}
+function restart(){
+ current=0;score=0;
+ document.getElementById("score").textContent=0;
+ document.getElementById("playing").style.display="block";
+ document.getElementById("result").style.display="none";
+ load();
+}
+load();
+</script>
+</body>
+</html>
